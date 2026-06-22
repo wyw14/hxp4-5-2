@@ -3,6 +3,7 @@ import { SeededRandom, generateSeed } from '../utils/random';
 import { OrigamiSVG } from '../components/OrigamiSVG';
 import { Model3DViewer } from '../components/Model3DViewer';
 import { FoldStateManager } from './FoldStateManager';
+import { PlayerStats } from './PlayerStats';
 
 export interface GameState {
   currentQuestion: Question | null;
@@ -25,6 +26,10 @@ export class OrigamiGame {
   private modelViewers: Model3DViewer[] = [];
   private shuffledOptions: string[] = [];
 
+  private playerStats: PlayerStats;
+  private statsPanel: HTMLElement | null = null;
+  private statsToggleBtn: HTMLButtonElement | null = null;
+
   private modelsContainer: HTMLElement | null = null;
   private submitBtn: HTMLButtonElement | null = null;
   private resetBtn: HTMLButtonElement | null = null;
@@ -44,6 +49,7 @@ export class OrigamiGame {
     this.seed = generateSeed();
     this.rng = new SeededRandom(this.seed);
     this.questionPool = this.rng.shuffle([...questionBank]);
+    this.playerStats = new PlayerStats();
 
     this.initUI();
     this.startGame();
@@ -67,6 +73,54 @@ export class OrigamiGame {
               <span class="stat-label">步数</span>
               <span class="stat-value" id="steps-display">0/0</span>
             </span>
+          </div>
+          <button class="stats-toggle-btn" id="stats-toggle-btn" title="个人成绩档案">
+            📊 成绩档案
+          </button>
+        </div>
+
+        <div class="stats-panel" id="stats-panel">
+          <div class="stats-panel-header">
+            <span>📊 个人成绩档案</span>
+            <button class="stats-close-btn" id="stats-close-btn">✕</button>
+          </div>
+          <div class="stats-panel-content" id="stats-panel-content">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-card-icon">📝</div>
+                <div class="stat-card-info">
+                  <div class="stat-card-label">累计完成题数</div>
+                  <div class="stat-card-value" id="stat-total-completed">0</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-icon">✅</div>
+                <div class="stat-card-info">
+                  <div class="stat-card-label">答对题数</div>
+                  <div class="stat-card-value" id="stat-correct-answers">0</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-icon">🏆</div>
+                <div class="stat-card-info">
+                  <div class="stat-card-label">最高单局分数</div>
+                  <div class="stat-card-value" id="stat-highest-score">0</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-icon">👣</div>
+                <div class="stat-card-info">
+                  <div class="stat-card-label">平均用步数</div>
+                  <div class="stat-card-value" id="stat-average-steps">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats-extra">
+              <div class="stat-extra-item">
+                <span class="stat-extra-label">正确率</span>
+                <span class="stat-extra-value" id="stat-accuracy-rate">0%</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -105,14 +159,19 @@ export class OrigamiGame {
     this.resetBtn = this.container.querySelector('#reset-btn');
     this.hintBtn = this.container.querySelector('#hint-btn');
     this.nextBtn = this.container.querySelector('#next-btn');
+    this.statsPanel = this.container.querySelector('#stats-panel');
+    this.statsToggleBtn = this.container.querySelector('#stats-toggle-btn');
 
     this.submitBtn?.addEventListener('click', () => this.checkAnswer());
     this.resetBtn?.addEventListener('click', () => this.resetFolds());
     this.hintBtn?.addEventListener('click', () => this.showHint());
     this.nextBtn?.addEventListener('click', () => this.nextQuestion());
+    this.statsToggleBtn?.addEventListener('click', () => this.toggleStatsPanel());
+    this.container.querySelector('#stats-close-btn')?.addEventListener('click', () => this.toggleStatsPanel());
   }
 
   private startGame(): void {
+    this.updateStatsDisplay();
     this.loadQuestion(this.currentQuestionIndex);
   }
 
@@ -269,19 +328,23 @@ export class OrigamiGame {
     }
 
     const isCorrect = this.state.selectedModelId === this.state.currentQuestion.correctModelId;
+    let earnedScore = 0;
 
     if (isCorrect) {
       const stepsBonus = Math.max(0, this.state.currentQuestion.maxSteps - this.state.stepsUsed) * 10;
       const baseScore = this.state.currentQuestion.difficulty * 100;
-      this.state.score += baseScore + stepsBonus;
+      earnedScore = baseScore + stepsBonus;
+      this.state.score += earnedScore;
       this.state.gameStatus = 'won';
-      this.showMessage(`🎉 答对了！获得 ${baseScore + stepsBonus} 分`, 'success');
+      this.showMessage(`🎉 答对了！获得 ${earnedScore} 分`, 'success');
     } else {
       this.state.gameStatus = 'lost';
       this.showMessage('😅 答错了，再试试吧！正确答案已高亮', 'error');
       this.highlightCorrectAnswer();
     }
 
+    this.playerStats.recordQuestionCompleted(isCorrect, earnedScore, this.state.stepsUsed);
+    this.updateStatsDisplay();
     this.updateScoreDisplay();
 
     if (this.nextBtn) {
@@ -424,6 +487,39 @@ export class OrigamiGame {
     const resultEl = this.container.querySelector('#result-message') as HTMLElement;
     if (resultEl) {
       resultEl.style.display = 'none';
+    }
+  }
+
+  private toggleStatsPanel(): void {
+    if (!this.statsPanel) return;
+    this.statsPanel.classList.toggle('open');
+  }
+
+  private updateStatsDisplay(): void {
+    const stats = this.playerStats.getStats();
+    const avgSteps = this.playerStats.getAverageSteps();
+    const accuracyRate = this.playerStats.getAccuracyRate();
+
+    const totalCompletedEl = this.container.querySelector('#stat-total-completed');
+    const correctAnswersEl = this.container.querySelector('#stat-correct-answers');
+    const highestScoreEl = this.container.querySelector('#stat-highest-score');
+    const averageStepsEl = this.container.querySelector('#stat-average-steps');
+    const accuracyRateEl = this.container.querySelector('#stat-accuracy-rate');
+
+    if (totalCompletedEl) {
+      totalCompletedEl.textContent = String(stats.totalQuestionsCompleted);
+    }
+    if (correctAnswersEl) {
+      correctAnswersEl.textContent = String(stats.totalCorrectAnswers);
+    }
+    if (highestScoreEl) {
+      highestScoreEl.textContent = String(stats.highestSingleScore);
+    }
+    if (averageStepsEl) {
+      averageStepsEl.textContent = String(avgSteps);
+    }
+    if (accuracyRateEl) {
+      accuracyRateEl.textContent = `${accuracyRate}%`;
     }
   }
 

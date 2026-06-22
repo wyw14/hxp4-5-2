@@ -364,6 +364,142 @@ body {
   color: #1565c0;
 }
 
+.stats-toggle-btn {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stats-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stats-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 380px;
+  max-width: 90vw;
+  height: 100vh;
+  background: white;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-panel.open {
+  right: 0;
+}
+
+.stats-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stats-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.stats-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.stats-panel-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.stat-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.stat-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.stats-extra {
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.stat-extra-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-extra-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.stat-extra-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #667eea;
+}
+
 @media (max-width: 900px) {
   .game-main {
     grid-template-columns: 1fr;
@@ -380,6 +516,15 @@ body {
   }
 
   .models-container {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-panel {
+    width: 100%;
+    right: -100%;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 }
