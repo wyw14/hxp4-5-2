@@ -103,7 +103,7 @@ export class OrigamiGame {
               <div class="stat-card">
                 <div class="stat-card-icon">🏆</div>
                 <div class="stat-card-info">
-                  <div class="stat-card-label">最高单局分数</div>
+                  <div class="stat-card-label">历史最高总分</div>
                   <div class="stat-card-value" id="stat-highest-score">0</div>
                 </div>
               </div>
@@ -343,7 +343,7 @@ export class OrigamiGame {
       this.highlightCorrectAnswer();
     }
 
-    this.playerStats.recordQuestionCompleted(isCorrect, earnedScore, this.state.stepsUsed);
+    this.playerStats.recordQuestionCompleted(isCorrect, this.state.score, this.state.stepsUsed);
     this.updateStatsDisplay();
     this.updateScoreDisplay();
 
@@ -453,6 +453,7 @@ export class OrigamiGame {
     if (scoreDisplay) {
       scoreDisplay.textContent = String(this.state.score);
     }
+    this.playerStats.updateHighestTotalScore(this.state.score);
   }
 
   private updateStepsDisplay(): void {
@@ -493,6 +494,10 @@ export class OrigamiGame {
   private toggleStatsPanel(): void {
     if (!this.statsPanel) return;
     this.statsPanel.classList.toggle('open');
+    if (this.statsPanel.classList.contains('open')) {
+      this.playerStats.updateHighestTotalScore(this.state.score);
+      this.updateStatsDisplay();
+    }
   }
 
   private updateStatsDisplay(): void {
@@ -513,7 +518,8 @@ export class OrigamiGame {
       correctAnswersEl.textContent = String(stats.totalCorrectAnswers);
     }
     if (highestScoreEl) {
-      highestScoreEl.textContent = String(stats.highestSingleScore);
+      const displayScore = Math.max(stats.highestTotalScore, this.state.score);
+      highestScoreEl.textContent = String(displayScore);
     }
     if (averageStepsEl) {
       averageStepsEl.textContent = String(avgSteps);

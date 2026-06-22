@@ -1,8 +1,15 @@
 export interface PlayerStatsData {
   totalQuestionsCompleted: number;
   totalCorrectAnswers: number;
-  highestSingleScore: number;
+  highestTotalScore: number;
   totalStepsUsed: number;
+}
+
+interface LegacyPlayerStatsData {
+  totalQuestionsCompleted?: number;
+  totalCorrectAnswers?: number;
+  highestSingleScore?: number;
+  totalStepsUsed?: number;
 }
 
 const STORAGE_KEY = 'origami_game_player_stats';
@@ -18,38 +25,75 @@ export class PlayerStats {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored) as PlayerStatsData | LegacyPlayerStatsData;
+        return this.migrateLegacyData(parsed);
       }
     } catch (e) {
       console.error('Failed to load player stats:', e);
     }
+    return this.createDefaultData();
+  }
+
+  private migrateLegacyData(data: PlayerStatsData | LegacyPlayerStatsData): PlayerStatsData {
+    const legacy = data as LegacyPlayerStatsData;
+    const modern = data as PlayerStatsData;
+
+    const hasNewField = typeof modern.highestTotalScore === 'number';
+    const hasLegacyField = typeof legacy.highestSingleScore === 'number';
+
+    if (hasNewField && !hasLegacyField) {
+      return {
+        totalQuestionsCompleted: modern.totalQuestionsCompleted ?? 0,
+        totalCorrectAnswers: modern.totalCorrectAnswers ?? 0,
+        highestTotalScore: modern.highestTotalScore,
+        totalStepsUsed: modern.totalStepsUsed ?? 0
+      };
+    }
+
+    const migrated: PlayerStatsData = {
+      totalQuestionsCompleted: legacy.totalQuestionsCompleted ?? modern.totalQuestionsCompleted ?? 0,
+      totalCorrectAnswers: legacy.totalCorrectAnswers ?? modern.totalCorrectAnswers ?? 0,
+      highestTotalScore: hasLegacyField ? (legacy.highestSingleScore as number) : (modern.highestTotalScore ?? 0),
+      totalStepsUsed: legacy.totalStepsUsed ?? modern.totalStepsUsed ?? 0
+    };
+
+    this.saveToStorage(migrated);
+    return migrated;
+  }
+
+  private createDefaultData(): PlayerStatsData {
     return {
       totalQuestionsCompleted: 0,
       totalCorrectAnswers: 0,
-      highestSingleScore: 0,
+      highestTotalScore: 0,
       totalStepsUsed: 0
     };
   }
 
-  private saveToStorage(): void {
+  private saveToStorage(data?: PlayerStatsData): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      const target = data ?? this.data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(target));
     } catch (e) {
       console.error('Failed to save player stats:', e);
     }
   }
 
-  recordQuestionCompleted(isCorrect: boolean, score: number, stepsUsed: number): void {
+  recordQuestionCompleted(isCorrect: boolean, currentTotalScore: number, stepsUsed: number): void {
     this.data.totalQuestionsCompleted++;
     this.data.totalStepsUsed += stepsUsed;
 
     if (isCorrect) {
       this.data.totalCorrectAnswers++;
-      if (score > this.data.highestSingleScore) {
-        this.data.highestSingleScore = score;
-      }
     }
 
+    this.updateHighestTotalScore(currentTotalScore);
+  }
+
+  updateHighestTotalScore(currentTotalScore: number): void {
+    if (currentTotalScore > this.data.highestTotalScore) {
+      this.data.highestTotalScore = currentTotalScore;
+    }
     this.saveToStorage();
   }
 
@@ -72,12 +116,7 @@ export class PlayerStats {
   }
 
   reset(): void {
-    this.data = {
-      totalQuestionsCompleted: 0,
-      totalCorrectAnswers: 0,
-      highestSingleScore: 0,
-      totalStepsUsed: 0
-    };
+    this.data = this.createDefaultData();
     this.saveToStorage();
   }
 }
